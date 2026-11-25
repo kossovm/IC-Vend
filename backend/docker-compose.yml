@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: icvend
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задай POSTGRES_PASSWORD в .env}
+      POSTGRES_DB: icvend
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U icvend -d icvend"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # Портов наружу нет намеренно: у сервиса нет своей авторизации, к нему ходит только api.
+  kaspi:
+    build: ./kaspi
+    environment:
+      TOKEN_SECRET_KEY: ${KASPI_TOKEN_SECRET_KEY:?задай KASPI_TOKEN_SECRET_KEY в .env}
+      WEBHOOK_URL: http://api:8000/api/kaspi/webhook
+      WEBHOOK_SECRET: ${KASPI_WEBHOOK_SECRET:?задай KASPI_WEBHOOK_SECRET в .env}
+      # Пусто = значения по умолчанию из сервиса. Заполни, когда Kaspi поднимет минимальную версию приложения.
+      APP_VERSION: ${KASPI_APP_VERSION:-}
+      APP_BUILD: ${KASPI_APP_BUILD:-}
+    volumes:
+      - kaspi:/data
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql+psycopg://icvend:${POSTGRES_PASSWORD}@db:5432/icvend
+      KASPI_URL: http://kaspi:3000
+      KASPI_WEBHOOK_SECRET: ${KASPI_WEBHOOK_SECRET}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?задай ADMIN_TOKEN в .env}
+    depends_on:
+      db:
+        condition: service_healthy
+      kaspi:
+        condition: service_started
+    ports:
+      - "${API_PORT:-8080}:8000"
+    restart: unless-stopped
+
+volumes:
+  db:
+  kaspi:
