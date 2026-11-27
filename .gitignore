@@ -1,7 +1,7 @@
-<<<<<<< HEAD
 # локальные секреты
 backend/.env
-=======
+
+# Android Studio / Gradle
 *.iml
 .gradle
 /local.properties
@@ -17,4 +17,4 @@ backend/.env
 .externalNativeBuild
 .cxx
 local.properties
->>>>>>> 05a27e1 (Kommit)
+build_log.txt

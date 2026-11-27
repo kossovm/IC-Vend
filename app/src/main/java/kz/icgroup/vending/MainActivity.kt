@@ -1,47 +1,55 @@
 package kz.icgroup.vending
 
+import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import kz.icgroup.vending.ui.theme.MyApplicationTheme
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import kz.icgroup.vending.data.Config
+import kz.icgroup.vending.ui.AppRoot
+import kz.icgroup.vending.ui.theme.IcVendingTheme
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var controller: VendingController
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) // экран автомата не гаснет
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        controller = VendingController(Config(applicationContext), lifecycleScope)
         setContent {
-            MyApplicationTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            IcVendingTheme {
+                AppRoot(
+                    controller = controller,
+                    onAndroidSettings = { startActivity(Intent(Settings.ACTION_SETTINGS)) },
+                    onCloseApp = { finishAffinity() },
+                )
             }
         }
+        controller.start()
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemBars()
+    }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MyApplicationTheme {
-        Greeting("Android")
+    /** Прячет строку состояния и кнопки навигации: покупатель видит только витрину. */
+    private fun hideSystemBars() {
+        val insets = WindowInsetsControllerCompat(window, window.decorView)
+        insets.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        insets.hide(WindowInsetsCompat.Type.systemBars())
+    }
+
+    override fun onDestroy() {
+        controller.shutdown()
+        super.onDestroy()
     }
 }
